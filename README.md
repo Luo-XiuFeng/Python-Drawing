@@ -1,6 +1,6 @@
 # Python-Drawing
 请自行安装python所需库
-
+<div align=center><img width="150" height="150" src="https://github.com/HeTingwei/ReadmeLearn/blob/master/avatar1.jpg"/></div>
 
 
 # IMU
@@ -17,4 +17,4 @@
 
 
 
-<div align=center><img width="150" height="150" src="https://github.com/HeTingwei/ReadmeLearn/blob/master/avatar1.jpg"/></div>
+
