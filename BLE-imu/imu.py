@@ -20,6 +20,8 @@ import datetime as dt
 import serial
 import threading
 from threading import Timer
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 import multiprocessing
 threads= []
@@ -31,7 +33,7 @@ gyroUnitConvert = 0.001 * np.pi/180
 devices_dict = {}
 devices_list = []
 
-name = "IMU-2g1000dps"
+name = "IMU-Step"
 address = 0
 
 VIEW = [-1.0, 1.0, -1.0, 1.0, 1.0, 10.0]  
@@ -157,6 +159,7 @@ async def run(debug=0):
                 if 'notify' not in char.properties:
                     continue
                 else:
+                    CHARACTERISTIC_UUID = char.uuid
                     try:
                         value = bytes(await client.read_gatt_char(char.uuid))
                     except Exception as e:
@@ -180,13 +183,13 @@ async def run(debug=0):
                         )
                     )
 
-                #Characteristic uuid
-                CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+              
 
-                while(True):
-                    await client.start_notify(CHARACTERISTIC_UUID, notification_handler)
+
                 # await asyncio.sleep(1)
                 #await client.stop_notify(CHARACTERISTIC_UUID)
+        while(True):
+            await client.start_notify(CHARACTERISTIC_UUID, notification_handler)
 
 
 async def scan():
@@ -237,47 +240,47 @@ curve1 = 0
 dataupdate = 0
 def plotData():
     global ptr,ptr1,i,k,f,ptr2,ptr,historyLength,accx,curve1,dataupdate,Yaxis
-    while(True):
+    
         
-        # accx += 1 
-        # Xaxis.put(accx)
-        # if(accx==5):
-        #     accx=0
-        if Xaxis.empty() == 0:
-            if i < historyLength:
-                data1[i] = Xaxis.get()
-                i = i+1
-            else:
-                #剔除最早的1个数据
-                data1[:-1] = data1[1:]
-                #在尾巴加入1个最新数据
-                data1[i-1] = Xaxis.get()
-            curve1.setData(data1)
-            curve1.setPos(ptr,0)
-            ptr  += 1
+    # accx += 1 
+    # Xaxis.put(accx)
+    # if(accx==5):
+    #     accx=0
+    if Xaxis.empty() == 0:
+        if i < historyLength:
+            data1[i] = Xaxis.get()
+            i = i+1
+        else:
+            #剔除最早的1个数据
+            data1[:-1] = data1[1:]
+            #在尾巴加入1个最新数据
+            data1[i-1] = Xaxis.get()
+        curve1.setData(data1)
+        curve1.setPos(ptr,0)
+        ptr  += 1
 
-   
-        if Yaxis.empty() == 0:
-            if k < historyLength:
-                data2[k] = Yaxis.get()
-                k = k+1
-            else:
-                data2[:-1] = data2[1:]
-                data2[k-1] = Yaxis.get()
-            curve2.setData(data2)
-            curve2.setPos(ptr1,0)
-            ptr1 += 1
 
-        if Zaxis.empty()  == 0:
-            if f < historyLength:
-                data3[f] = Zaxis.get()
-                f = f+1
-            else:
-                data3[:-1] = data3[1:]
-                data3[f-1] = Zaxis.get()
-            curve3.setData(data3)
-            curve3.setPos(ptr2,0)
-            ptr2 += 1
+    if Yaxis.empty() == 0:
+        if k < historyLength:
+            data2[k] = Yaxis.get()
+            k = k+1
+        else:
+            data2[:-1] = data2[1:]
+            data2[k-1] = Yaxis.get()
+        curve2.setData(data2)
+        curve2.setPos(ptr1,0)
+        ptr1 += 1
+
+    if Zaxis.empty()  == 0:
+        if f < historyLength:
+            data3[f] = Zaxis.get()
+            f = f+1
+        else:
+            data3[:-1] = data3[1:]
+            data3[f-1] = Zaxis.get()
+        curve3.setData(data3)
+        curve3.setPos(ptr2,0)
+        ptr2 += 1
 
 loop = 0
 
@@ -354,7 +357,21 @@ if __name__ == '__main__':
     curve2 = p1.plot(pen = 'b')                       # 绘制一个图形
     curve3 = p1.plot(pen = 'y')                       # 绘制一个图形
 
-    timer_start(0.01,plotData)
+
+
+    timer = QTimer() #初始化一个定时器
+    timer.timeout.connect(plotData) #计时结束调用operate()方法
+    timer.start(0.001) #设置计时间隔并启动
+
+
+    # # 设定定时器
+    # timer = QTimer()
+    # # 定时器信号绑定 update_data 函数
+    # timer.timeout.connect(plotData)
+    # # 定时器间隔50ms，可以理解为 50ms 刷新一次数据
+    # timer.start(0.001)
+
+
     app.exec_()
 
     
