@@ -1,7 +1,7 @@
 # Python-Drawing
-请自行安装python所需库
-  或 pip install -r requirements.txt
-  imu库需要OpenGL64位  已包含在imu目录内 手动安装
+请自行安装python所需库  
+或 pip install -r requirements.txt  
+imu库需要OpenGL64位  已包含在imu目录内 手动安装  
 
 <div align=center><img width="150" height="150" src="https://github.com/HeTingwei/ReadmeLearn/blob/master/avatar1.jpg"/></div>
 
