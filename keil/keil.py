@@ -8,6 +8,7 @@ fin = open('shuju', 'r')
 hex_dat = fin.read()
 fin.close()
 
+
 p_str = 0   
 while p_str < len(hex_dat) :
     if hex_dat[p_str] == ':':
