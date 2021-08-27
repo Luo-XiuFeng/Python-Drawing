@@ -104,6 +104,7 @@ if __name__ == "__main__":
         serial.close()  # 关闭端口
     th1 = threading.Thread(target=Serial)
     th1.start()
+    
     timer = pg.QtCore.QTimer()
     timer.timeout.connect(plotData)   # 定时刷新数据显示
     timer.start(1)  # 多少ms调用一次
