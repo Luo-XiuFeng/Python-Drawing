@@ -3,9 +3,8 @@ import asyncio
 from asyncio.tasks import sleep
 from asyncio.windows_events import SelectorEventLoop
 from pickle import TRUE
-from bleak import BleakClient
-from bleak import discover
 import logging
+
 import numpy as np
 import struct
 import array
@@ -21,25 +20,26 @@ from PyQt5 import QtWidgets,QtCore,QtGui
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse, Circle
 import heartpy as hp
-import sys
-import wfdb
 import time
-import signal
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
-from PyQt5.QtWidgets import QApplication, QPushButton, QMainWindow, QVBoxLayout, QWidget
 from PyQt5.QtWidgets import (QWidget, QApplication, QComboBox, QLabel, QPushButton, QHBoxLayout,
                              QVBoxLayout, QToolTip, QMessageBox)
 from PyQt5.QtGui import QIntValidator,QDoubleValidator,QRegExpValidator
-from matplotlib.patches import Ellipse, Circle
-import sys
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from bleak import BleakClient
+from bleak import discover
+
 
 sample_rate = 25
 data = hp.get_data(r'C:\Users\LUOXF\Desktop\心率验证\data.txt')
+
+
+
+
 
 class MainUi(QtWidgets.QMainWindow):
     def __init__(self):
@@ -52,23 +52,27 @@ class MainUi(QtWidgets.QMainWindow):
 
         self.TabLocation = 0
 
+        #程序名
         self.setWindowTitle("BleTool-PPG-ECG")
-        self.mainwidget = QWidget() # 创建一个主部件
-        self.mainwlayout = QtWidgets.QGridLayout() # 创建一个网格布局
-        self.mainwidget.setLayout(self.mainwlayout) # 设置主部件的布局为网格
-        self.tab = QTabWidget(self)
-        self.tab.currentChanged.connect(self.tabchange)
-        self.toolui()
-        self.ppg_ui()
-        self.ecg_ui()
+        
+        #主页
+        self.maintab = QTabWidget(self)
+        
+        self.DynamicState()
         self.staticAnalysis()
-        self.mainwlayout.addWidget(self.info, 1, 0, 1, 2)
-        self.mainwlayout.addWidget(self.line, 2, 0, 1, 2)
-        self.mainwlayout.addWidget(self.tab, 3, 0, 1, 2)
-        self.setCentralWidget(self.mainwidget)
+        self.maintab.currentChanged.connect(self.MainTabChange)
+        self.setCentralWidget(self.maintab)
 
 
-    def tabchange(self,tab):
+        
+
+    def MainTabChange(self,tab):
+        self.TabLocation = tab
+        print(tab)
+       
+
+
+    def SonTabChange(self,tab):
         self.TabLocation = tab
         if(self.TabLocation == 0):
             self.plot_plt.setTitle("心率:",size='16pt',color='r')
@@ -76,11 +80,53 @@ class MainUi(QtWidgets.QMainWindow):
             self.plot_plt.setTitle("",size='16pt',color='r')
         print(tab)
 
-
+    #静态
     def staticAnalysis(self):
-        self.staticanalysisui_widget = QWidget() # 创建一个主部件
-        self.tab.addTab(self.staticanalysisui_widget,'静态数据分析')
+        self.staticAnalysis_widget = QWidget() # 创建一个主部件
+        self.staticAnalysislayout  = QtWidgets.QGridLayout() # 创建一个网格布局
+        self.staticAnalysis_widget.setLayout(self.staticAnalysislayout) # 设置主部件的布局为网格
 
+        
+        self.pushButton = QtWidgets.QPushButton()
+        self.pushButton.setObjectName("pushButton")
+        self.pushButton.setText("打开")
+        self.pushButton.clicked.connect(self.showDialog)
+
+        self.textEdit = QtWidgets.QTextEdit()
+        self.textEdit.setGeometry(QtCore.QRect(10, 10, 301, 27))
+      
+        self.textEdit.setStyleSheet("font-family:微软雅黑;")
+        self.textEdit.setObjectName("textEdit")
+        # self.textEdit.textChanged.connect(self.editchange)
+        self.textEdit.setReadOnly(False)
+
+
+        self.staticAnalysislayout.addWidget(self.pushButton, 1, 0, 1, 1)
+        self.staticAnalysislayout.addWidget(self.textEdit, 2, 0, 1, 1)
+        self.maintab.addTab(self.staticAnalysis_widget,'静态数据分析')
+        
+        self.staticAnalysis_widget.setAcceptDrops(True)
+        # self.setAcceptDrops(True)
+
+
+    #动态
+    def DynamicState(self):
+
+        self.mainwidget = QWidget() # 创建一个主部件
+        self.mainwlayout = QtWidgets.QGridLayout() # 创建一个网格布局
+        self.mainwidget.setLayout(self.mainwlayout) # 设置主部件的布局为网格
+
+        self.maintab.addTab(self.mainwidget,'动态数据分析')
+        
+        self.tab = QTabWidget(self)
+        self.tab.currentChanged.connect(self.SonTabChange)
+
+        self.toolui()
+        self.ppg_ui()
+        self.ecg_ui()
+        self.mainwlayout.addWidget(self.info, 1, 0, 1, 2)
+        self.mainwlayout.addWidget(self.line, 2, 0, 1, 2)
+        self.mainwlayout.addWidget(self.tab, 3, 0, 1, 2)
 
     def toolui(self):
 
@@ -149,8 +195,10 @@ class MainUi(QtWidgets.QMainWindow):
 
             # 设定定时器  连接时启动
         self.timer = pg.QtCore.QTimer()
+        self.timer.setTimerType(Qt.PreciseTimer)  # 关键的一步，取消默认的精度设置
             # 定时器信号绑定 update_data 函数
         self.timer.timeout.connect(self.update_data)
+        
 
     def ppg_ui(self):
         
@@ -248,119 +296,119 @@ class MainUi(QtWidgets.QMainWindow):
 
         wd, m = hp.process(self.filtered_ppg, sample_rate=self.ppgsampling,
                         high_precision = True)
-
-        fs = wd['sample_rate']
-        plotx = np.arange(0, len(wd['hr'])/fs, 1/fs)
-        #check if there's a rounding error causing differing lengths of plotx and signal
-        diff = len(plotx) - len(wd['hr'])
-        if diff < 0:
-            #add to linspace
-            plotx = np.append(plotx, plotx[-1] + (plotx[-2] - plotx[-1]))
-        elif diff > 0:
-            #trim linspace
-            plotx = plotx[0:-diff]
+        if(wd or m):
             
-        peaklist = wd['peaklist']
-        ybeat = wd['ybeat']
-        rejectedpeaks = wd['removed_beats']
-        rejectedpeaks_y = wd['removed_beats_y']
+            fs = wd['sample_rate']
+            plotx = np.arange(0, len(wd['hr'])/fs, 1/fs)
+            #check if there's a rounding error causing differing lengths of plotx and signal
+            diff = len(plotx) - len(wd['hr'])
+            if diff < 0:
+                #add to linspace
+                plotx = np.append(plotx, plotx[-1] + (plotx[-2] - plotx[-1]))
+            elif diff > 0:
+                #trim linspace
+                plotx = plotx[0:-diff]
+                
+            peaklist = wd['peaklist']
+            ybeat = wd['ybeat']
+            rejectedpeaks = wd['removed_beats']
+            rejectedpeaks_y = wd['removed_beats_y']
 
    
-        self.ax.cla()
-        self.bx.cla()
-        #PPG 原始数据 刷新点       add_subplot 行 列 图中位置 
-        self.ax = self.fig.add_subplot(311)
-        self.ax.set_title('PPG原始数据(t-1)',fontsize=13)
-        # self.ax.set_xlabel('dot')
-        self.ax.plot(self.ppgalgodata,color="green")
-        
-          #PPG 带通滤波心率估算
-        self.bx = self.fig.add_subplot(312)
-        self.bx.set_title('带通滤波器后心率估算(t-1)',fontsize=13)
-        # self.ax.set_xlabel('Time(t-1)')
-        self.bx.plot(plotx, wd['hr'], color="dodgerblue", label='PPG滤波数据', zorder=-10)
-        self.bx.scatter(np.asarray(peaklist)/fs, ybeat, color="red",label='BPM:%.2f' %(m['bpm']))
-        self.bx.scatter(rejectedpeaks/fs, rejectedpeaks_y,color="fuchsia", label='废弃心峰')
-        self.bx.legend(loc=4,fontsize=12,framealpha=0.5)
+            self.ax.cla()
+            self.bx.cla()
+            #PPG 原始数据 刷新点       add_subplot 行 列 图中位置 
+            self.ax = self.fig.add_subplot(311)
+            self.ax.set_title('PPG原始数据(t-1)',fontsize=13)
+            # self.ax.set_xlabel('dot')
+            self.ax.plot(self.ppgalgodata,color="green")
+            
+            #PPG 带通滤波心率估算
+            self.bx = self.fig.add_subplot(312)
+            self.bx.set_title('带通滤波器后心率估算(t-1)',fontsize=13)
+            # self.ax.set_xlabel('Time(t-1)')
+            self.bx.plot(plotx, wd['hr'], color="dodgerblue", label='PPG滤波数据', zorder=-10)
+            self.bx.scatter(np.asarray(peaklist)/fs, ybeat, color="red",label='BPM:%.2f' %(m['bpm']))
+            self.bx.scatter(rejectedpeaks/fs, rejectedpeaks_y,color="fuchsia", label='废弃心峰')
+            self.bx.legend(loc=4,fontsize=12,framealpha=0.5)
 
 
-        self.cx.cla()
-        self.cx = self.fig.add_subplot(313)
-        # self.ax.set_xlabel('ms')''
-        self.cx.set_title('呼吸信号(t-1)',fontsize=13)
-        if "breathing_signal" in wd:
-          self.cx.plot(wd['breathing_signal'], color="dodgerblue", label='呼吸率:%.2f 立方/秒' %(m['breathingrate'] ))
-          self.cx.legend(loc=4,fontsize=12,framealpha=0.5)
+            self.cx.cla()
+            self.cx = self.fig.add_subplot(313)
+            # self.ax.set_xlabel('ms')''
+            self.cx.set_title('呼吸信号(t-1)',fontsize=13)
+            if "breathing_signal" in wd:
+                self.cx.plot(wd['breathing_signal'], color="dodgerblue", label='呼吸率:%.2f 立方/秒' %(m['breathingrate'] ))
+                self.cx.legend(loc=4,fontsize=12,framealpha=0.5)
        
         
  
-        self.dx.cla()
-        self.dx.set_title('庞加莱HRV分析(心率变异性)')
-        if "poincare" in wd:
-          #get values from dict
-          self.x_plus = wd['poincare']['x_plus']
-          self.x_minus = wd['poincare']['x_minus']
-          self.sd1 = m['sd1']
-          self.sd2 = m['sd2']
-
-          #define figure
-          # fig, bx = plt.subplots(subplot_kw={'aspect': 'equal'}, figsize=None)
-          if(len(self.x_plus)>0):
-            #plot scatter
-            self.dx.scatter(self.x_plus, self.x_minus, color = "red",
-                        alpha = 0.75, label = '最大峰值间隔')
-
-            #plot identity line
-            mins = np.min([self.x_plus, self.x_minus])
-            maxs = np.max([self.x_plus, self.x_minus])
-            identity_line = np.linspace(np.min(mins), np.max(maxs))
-
-            self.dx.plot(identity_line, identity_line, color='black', alpha=0.5, label = '标识线')
-            self.dx.plot(identity_line, identity_line, color='black',alpha=0.5,label = 'SDNN:%.2f ms' %(m['sdnn']))
-            self.dx.plot(identity_line, identity_line, color='black',alpha=0.5,label = 'RMSSD:%.2f ms'%(m['rmssd']))        
+            self.dx.cla()
+            self.dx.set_title('庞加莱HRV分析(心率变异性)')
+            if "poincare" in wd:
+                #get values from dict
+                self.x_plus = wd['poincare']['x_plus']
+                self.x_minus = wd['poincare']['x_minus']
+                self.sd1 = m['sd1']
+                self.sd2 = m['sd2']
 
 
+            if(len(self.x_plus)>0):
+                #plot scatter
+                self.dx.scatter(self.x_plus, self.x_minus, color = "red",
+                            alpha = 0.75, label = '最大峰值间隔')
 
-            #rotate SD1, SD2 vectors 45 degrees counterclockwise
-            sd1_xrot, sd1_yrot = self.rotate_vec(0, self.sd1, 45)
-            sd2_xrot, sd2_yrot = self.rotate_vec(0, self.sd2, 45)
+                #plot identity line
+                mins = np.min([self.x_plus, self.x_minus])
+                maxs = np.max([self.x_plus, self.x_minus])
+                identity_line = np.linspace(np.min(mins), np.max(maxs))
 
-            #plot rotated SD1, SD2 lines
-            self.dx.plot([np.mean(self.x_plus), np.mean(self.x_plus) + sd1_xrot],
-                    [np.mean(self.x_minus), np.mean(self.x_minus) + sd1_yrot],
-                    color = "blue", label = 'SD1:%.2f' %(m['sd1']))
-            self.dx.plot([np.mean(self.x_plus), np.mean(self.x_plus) - sd2_xrot],
-                    [np.mean(self.x_minus), np.mean(self.x_minus) + sd2_yrot],
-                    color = "red", label =  'SD2:%.2f' %(m['sd2']))
+                self.dx.plot(identity_line, identity_line, color='black', alpha=0.5, label = '标识线')
+                self.dx.plot(identity_line, identity_line, color='black',alpha=0.5,label = 'SDNN:%.2f ms' %(m['sdnn']))
+                self.dx.plot(identity_line, identity_line, color='black',alpha=0.5,label = 'RMSSD:%.2f ms'%(m['rmssd']))        
 
-            #plot ellipse
-            xmn = np.mean(self.x_plus)
-            ymn = np.mean(self.x_minus)
-            el = Ellipse((xmn, ymn), width = self.sd2 * 2, height = self.sd1 * 2, angle = 45.0)
-            self.dx.add_artist(el)
-            el.set_edgecolor((0,0,0))
-            el.fill = False
 
-            self.dx.set_xlabel('RRi_n (ms)')
-            self.dx.set_ylabel('RRi_n+1 (ms)')
-            self.dx.legend(loc=4,fontsize=12,framealpha=0.5)
+
+                #rotate SD1, SD2 vectors 45 degrees counterclockwise
+                sd1_xrot, sd1_yrot = self.rotate_vec(0, self.sd1, 45)
+                sd2_xrot, sd2_yrot = self.rotate_vec(0, self.sd2, 45)
+
+                #plot rotated SD1, SD2 lines
+                self.dx.plot([np.mean(self.x_plus), np.mean(self.x_plus) + sd1_xrot],
+                        [np.mean(self.x_minus), np.mean(self.x_minus) + sd1_yrot],
+                        color = "blue", label = 'SD1:%.2f' %(m['sd1']))
+                self.dx.plot([np.mean(self.x_plus), np.mean(self.x_plus) - sd2_xrot],
+                        [np.mean(self.x_minus), np.mean(self.x_minus) + sd2_yrot],
+                        color = "red", label =  'SD2:%.2f' %(m['sd2']))
+
+                #plot ellipse
+                xmn = np.mean(self.x_plus)
+                ymn = np.mean(self.x_minus)
+                el = Ellipse((xmn, ymn), width = self.sd2 * 2, height = self.sd1 * 2, angle = 45.0)
+                self.dx.add_artist(el)
+                el.set_edgecolor((0,0,0))
+                el.fill = False
+
+                self.dx.set_xlabel('RRi_n (ms)')
+                self.dx.set_ylabel('RRi_n+1 (ms)')
+                self.dx.legend(loc=4,fontsize=12,framealpha=0.5)
 
           
 
 
-        for key in m.keys():
-            print('%s: %f' %(key, m[key]))
+            for key in m.keys():
+                print('%s: %f' %(key, m[key]))
           
 
-        #自动排列避免重叠
-        self.fig.tight_layout() 
-        self.PoincareGraph.tight_layout() 
-        
-        self.fig.canvas.draw()  # 这里注意是画布重绘，self.figs.canvas
-        self.fig.canvas.flush_events()  # 画布刷新self.figs.canvas
+            #自动排列避免重叠
+            self.fig.tight_layout() 
+            self.PoincareGraph.tight_layout() 
+            
+            self.fig.canvas.draw()  # 这里注意是画布重绘，self.figs.canvas
+            self.fig.canvas.flush_events()  # 画布刷新self.figs.canvas
 
-        self.PoincareGraph.canvas.draw()
-        self.PoincareGraph.canvas.flush_events()
+            self.PoincareGraph.canvas.draw()
+            self.PoincareGraph.canvas.flush_events()
 
 
 
@@ -443,7 +491,7 @@ class MainUi(QtWidgets.QMainWindow):
             print(self.bleMac)
 
             #启动曲线数据刷新线程
-            self.timer.start(0.04)
+            self.timer.start(40)
             self.timer_start(0.001,self.wait_link)
             self.timer_start(0.1,self.Count)
         else:
@@ -511,16 +559,12 @@ class MainUi(QtWidgets.QMainWindow):
 
                         # await asyncio.sleep(1)
                     #await self.client.stop_notify(CHARACTERISTIC_UUID)
-
-            # while(True):
+            if(self.noticeuuid):
                 await self.client.start_notify(self.noticeuuid,self.notification_handler)
-     
-                
+                while(True):
+                    await asyncio.sleep(0.001)
 
                 
-
- 
- 
     def get_time_stamp(self):
         ct = time.time()
         local_time = time.localtime(ct)
@@ -528,10 +572,12 @@ class MainUi(QtWidgets.QMainWindow):
         data_secs = (ct - int(ct)) * 1000
         time_stamp = "%s.%03d" % (data_head, data_secs)
         print(time_stamp)
+                
+
 
 
     def notification_handler(self,sender,data):
-        self.get_time_stamp()
+        # self.get_time_stamp()
         dataList=[]
 
 
@@ -552,26 +598,27 @@ class MainUi(QtWidgets.QMainWindow):
         for i in range(25):
             #struct.unpack用于拼接解析 参数为'<H'为拼接成无符号short 但数据必须是bytes  用bytes.fromhex将数据转换成bytes，"".join用于生成字符串
             self.gs301ppg = struct.unpack('<H', bytes.fromhex("".join([str(x) for x in dataList[i*2:i*2+2]])))[0] 
-            # self.PPG.put(self.gs301ppg)
+            self.PPG.put(self.gs301ppg)
             self.ppgalgodata.append(self.gs301ppg)
-            if(len(self.normalizedorig) >=100):
-                del(self.normalizedorig[0])
-                self.normalizedorig.append(self.gs301ppg)
-            else:
-                self.normalizedorig.append(self.gs301ppg)
+         
+            # if(len(self.normalizedorig) >=100):
+            #     del(self.normalizedorig[0])
+            #     self.normalizedorig.append(self.gs301ppg)
+            # else:
+            #     self.normalizedorig.append(self.gs301ppg)
                 
-            self.PPG.put(self.normalized(self.gs301ppg,self.normalizedorig))
+            # self.PPG.put(self.normalized(self.gs301ppg,self.normalizedorig))
             # print(self.gs301ppg)
 
 
-        
+    #归一化    
     def normalized(self,currentdata,olddata):
-        # Min = np.min(olddata)
-        # Max = np.max(olddata)
-        Min = 0
-        Max = 66000
+        Min = np.min(olddata)
+        Max = np.max(olddata)
+        # Min = 0
+        # Max = 66000
         currentdata = (currentdata - Min) / (Max - Min)
-        print(currentdata)
+        # print(currentdata)
         return currentdata
         
     #创建断开协程
@@ -598,9 +645,9 @@ class MainUi(QtWidgets.QMainWindow):
 
     #BLE数据刷新
     def update_data(self):
-        
+  
         if self.PPG.empty() == 0:
-            
+            # self.get_time_stamp()
             self.data1[:-1] = self.data1[1:]
             self.data1[-1] = self.PPG.get()
             # 数据填充到绘制曲线中
@@ -613,13 +660,18 @@ class MainUi(QtWidgets.QMainWindow):
             srtr = ''.join(self.hex2dec(self.hr))
             self.plot_plt.setTitle("心率:" + srtr)
 
+        # self.timer_start(0.04,self.update_data)
 
-
+    #定时定量执行绘图算法
     def Count(self):
+        print(len(self.ppgalgodata))
+        
         if(len(self.ppgalgodata) >= 250):
+            self.get_time_stamp()
             self.ppgalgo()
             self.ppgalgodata.clear()
-        self.timer_start(0.04,self.Count)
+        
+        self.timer_start(0.5,self.Count)
         # print("数据")
         # print(self.ppgalgodata)
 
@@ -628,10 +680,20 @@ class MainUi(QtWidgets.QMainWindow):
         t = Timer(time,call)
         t.start()
 
-
+    #警告框
     def messageDialog(self,txt):
         msg_box = QMessageBox(QMessageBox.Warning,'警告',txt)
         msg_box.exec_()
+
+    #定义打开文件夹目录
+    def showDialog(self):
+        print("1212")
+        openfile_name = QFileDialog.getOpenFileName(self.staticAnalysis_widget,'选择文件')
+
+    # 鼠标拖入事件
+    def dragEnterEvent(self, event):
+        print(os.path.dirname((event.mimeData().urls())[0].toLocalFile()))
+
 
 
 
