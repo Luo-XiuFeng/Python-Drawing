@@ -10,6 +10,9 @@ import datetime as dt
 import time
 
 
+
+
+
 k = 0
 i = 0
 Server = Queue(maxsize=0)
@@ -317,9 +320,9 @@ if __name__ == "__main__":
     # gg.timeout.connect(plotPos)   # 定时刷新数据显示
     # gg.start(1)  # 多少ms调用一次
 
-    count = pg.QtCore.QTimer()
-    count.timeout.connect(rxconte)   # 定时刷新数据显示
-    count.start(1000)  # 多少ms调用一次
+    # count = pg.QtCore.QTimer()
+    # count.timeout.connect(rxconte)   # 定时刷新数据显示
+    # count.start(1000)  # 多少ms调用一次
 
 
     app.exec_()
