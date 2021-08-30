@@ -183,14 +183,13 @@ async def run(debug=0):
                             descriptor.uuid, descriptor.handle, bytes(value)
                         )
                     )
-
-              
-
-
-                # await asyncio.sleep(1)
+   
                 #await client.stop_notify(CHARACTERISTIC_UUID)
-        while(True):
+        if(CHARACTERISTIC_UUID):
             await client.start_notify(CHARACTERISTIC_UUID, notification_handler)
+            while(True):
+                await asyncio.sleep(0.001)
+            
 
 
 async def scan():
@@ -362,7 +361,7 @@ if __name__ == '__main__':
 
     timer = QTimer() #初始化一个定时器
     timer.timeout.connect(plotData) #计时结束调用operate()方法
-    timer.start(0.001) #设置计时间隔并启动
+    timer.start(10) #设置计时间隔并启动
 
 
     # # 设定定时器
