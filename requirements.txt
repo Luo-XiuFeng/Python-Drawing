@@ -1,6 +1,6 @@
+pyqtgraph
 PyQt5
 matplotlib
-pyqtgraph
 heartpy
 bleak
 serial
